@@ -1,17 +1,17 @@
 import json
 
 def lambda_handler(event, context):
-    print("Event received:", json.dumps(event))
+    print("=== FULL EVENT ===")
+    print(json.dumps(event))
+    print("==================")
 
     try:
         if "Records" in event:
-            # Handle S3 trigger
             return {
                 "statusCode": 200,
                 "body": "S3 event processed successfully."
             }
         else:
-            # Handle API Gateway trigger
             return {
                 "statusCode": 200,
                 "body": json.dumps("API Gateway request received.")
