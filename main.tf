@@ -11,8 +11,6 @@ resource "aws_s3_bucket" "upload_bucket" {
       events              = ["s3:ObjectCreated:*"]
     }
   }
-
-  depends_on = [aws_lambda_permission.allow_s3]
 }
 
 resource "aws_iam_role" "lambda_exec_role" {
