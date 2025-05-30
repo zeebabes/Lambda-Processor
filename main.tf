@@ -2,21 +2,12 @@ provider "aws" {
   region = var.aws_region
 }
 
+# --- S3 bucket ---
 resource "aws_s3_bucket" "upload_bucket" {
   bucket = var.s3_bucket_name
 }
 
-resource "aws_s3_bucket_notification" "upload_events" {
-  bucket = aws_s3_bucket.upload_bucket.id
-
-  lambda_function {
-    lambda_function_arn = aws_lambda_function.file_processor.arn
-    events              = ["s3:ObjectCreated:*"]
-  }
-
-  depends_on = [aws_lambda_permission.allow_s3]
-}
-
+# --- Lambda IAM Role ---
 resource "aws_iam_role" "lambda_exec_role" {
   name = "lambda_exec_role"
   assume_role_policy = jsonencode({
@@ -36,15 +27,17 @@ resource "aws_iam_role_policy_attachment" "lambda_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# --- Lambda Function ---
 resource "aws_lambda_function" "file_processor" {
   function_name = "s3-file-processor"
-  role          = aws_iam_role.lambda_exec_role.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
+  role          = aws_iam_role.lambda_exec_role.arn
   filename      = "lambda_function_payload.zip"
   source_code_hash = filebase64sha256("lambda_function_payload.zip")
 }
 
+# --- Allow S3 to invoke Lambda ---
 resource "aws_lambda_permission" "allow_s3" {
   statement_id  = "AllowS3Invoke"
   action        = "lambda:InvokeFunction"
@@ -53,6 +46,19 @@ resource "aws_lambda_permission" "allow_s3" {
   source_arn    = aws_s3_bucket.upload_bucket.arn
 }
 
+# --- S3 Event trigger for Lambda ---
+resource "aws_s3_bucket_notification" "upload_events" {
+  bucket = aws_s3_bucket.upload_bucket.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.file_processor.arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+
+  depends_on = [aws_lambda_permission.allow_s3]
+}
+
+# --- API Gateway ---
 resource "aws_api_gateway_rest_api" "api" {
   name        = "LambdaFileProcessorAPI"
   description = "API Gateway to trigger Lambda"
@@ -80,7 +86,8 @@ resource "aws_api_gateway_integration" "lambda_integration" {
   uri                     = aws_lambda_function.file_processor.invoke_arn
 }
 
-resource "aws_api_gateway_method_response" "response_200" {
+# --- Add method + integration response to support CORS ---
+resource "aws_api_gateway_method_response" "method_response_200" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   resource_id = aws_api_gateway_resource.lambda_resource.id
   http_method = aws_api_gateway_method.get_method.http_method
@@ -95,18 +102,18 @@ resource "aws_api_gateway_method_response" "response_200" {
   }
 }
 
-resource "aws_api_gateway_integration_response" "integration_200" {
+resource "aws_api_gateway_integration_response" "integration_response_200" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   resource_id = aws_api_gateway_resource.lambda_resource.id
   http_method = aws_api_gateway_method.get_method.http_method
-  status_code = aws_api_gateway_method_response.response_200.status_code
-
-  response_templates = {
-    "application/json" = ""
-  }
+  status_code = "200"
 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = "'*'"
+  }
+
+  response_templates = {
+    "application/json" = ""
   }
 
   depends_on = [aws_api_gateway_integration.lambda_integration]
