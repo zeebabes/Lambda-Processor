@@ -4,13 +4,17 @@ provider "aws" {
 
 resource "aws_s3_bucket" "upload_bucket" {
   bucket = var.s3_bucket_name
+}
 
-  notification {
-    lambda_function {
-      lambda_function_arn = aws_lambda_function.file_processor.arn
-      events              = ["s3:ObjectCreated:*"]
-    }
+resource "aws_s3_bucket_notification" "upload_events" {
+  bucket = aws_s3_bucket.upload_bucket.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.file_processor.arn
+    events              = ["s3:ObjectCreated:*"]
   }
+
+  depends_on = [aws_lambda_permission.allow_s3]
 }
 
 resource "aws_iam_role" "lambda_exec_role" {
