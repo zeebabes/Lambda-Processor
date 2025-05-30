@@ -10,7 +10,7 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json"
             },
-            "body": json.dumps({"message": "API Gateway request received."})
+            "body": json.dumps({"message": "Lambda triggered successfully!"})
         }
 
     except Exception as e:
