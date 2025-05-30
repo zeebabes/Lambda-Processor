@@ -41,8 +41,8 @@ resource "aws_lambda_function" "file_processor" {
   role          = aws_iam_role.lambda_exec_role.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
-  filename      = "lambda_function.zip"
-  source_code_hash = filebase64sha256("lambda_function.zip")
+  filename      = "lambda_function_payload.zip"
+  source_code_hash = filebase64sha256("lambda_function_payload.zip")
 }
 
 resource "aws_lambda_permission" "allow_s3" {
